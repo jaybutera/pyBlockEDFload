@@ -5,7 +5,7 @@ import re
 class EDFfile(object):
     def __init__(self, filename):
         self.f = open(filename, 'rb')
-        self.signals = np.array([], dtype=object)
+        #self.signals = np.array([], dtype=object)
 
         self.gHeader = dict()
         '''
@@ -95,17 +95,11 @@ class EDFfile(object):
                     'reserved'    : reserved[i]
                     }
 
-        #self.data = np.ndarray(shape=(ns, self.gHeader['nrecords']), dtype='<h')
+        self.signals = np.empty(self.gHeader['ns'], dtype=object)
 
-        '''
-        scaleFac = [(label['physMax'] - label['physMin']) /
-                    (label['digMax'] - label['digMin']) 
-                    for label in self.sHeader.values()]
-        print scaleFac[0]
-        dc = [label['physMax'] - scaleFac[i] *
-              label['digMax'] for i, label in enumerate(self.sHeader.values())]
-        print dc[0]
-        '''
+        #self.data = np.ndarray(shape=(ns, self.gHeader['nrecords']), dtype='<h')
+        #self.signals = np.array([np.array(shape=(self.gHeader['nrecords']
+        #    *signal['sample'], 1)) for signal in self.sHeader.values()], dtype=object)
 
         print 'Header loaded successfully'
 
@@ -130,35 +124,15 @@ class EDFfile(object):
         signalLoc = np.concatenate((np.array([0]), np.cumsum([label['sample']
                                    for label in self.sHeader.values()])))
 
+        '''
         for i, sig in enumerate(self.sHeader.values()):
             self.signals = np.append(self.signals, np.reshape(A[signalLoc[i]:signalLoc[i+1],:].T,
                                          sig['sample']*self.gHeader['nrecords']))
-
-        '''
-        count = np.zeros(shape=(self.gHeader['ns']))
-
-        for record in xrange(self.gHeader['nrecords']):
-            for signal in self.sHeader.items():
-                for i in xrange(signal[1]['sample']):
-                    count[i] += 1
-                    self.data[signal[0]][count] = sdata[sum(count)]
         '''
 
-        '''
-        for record in xrange(self.gHeader['nrecords']):
-            for i, signal in enumerate(self.sHeader.items()):
-                count[i] += 1
-                #self.data[signal[0]] = np.append(np.fromfile(self.f, dtype='<h',
-                #        count=signal[1]['sample']))
-                self.data[signal[0]][count] = np.append(self.data[signal[0]],
-                        np.frombuffer(sdata, dtype='<h',
-                        count=signal[1]['sample']))
-        '''
-        '''
-        for record in xrange(self.gHeader['nrecords']):
-            for signal in self.sHeader.items():
-                self.sdata[signal[0]] = np.append(self.data
-        '''
+        for i, sig in enumerate(self.sHeader.values()):
+            self.signals[i] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
+                                         sig['sample']*self.gHeader['nrecords'])
 
         self.f.close()
 
