@@ -5,7 +5,7 @@ import re
 class EDFfile(object):
     def __init__(self, filename):
         self.f = open(filename, 'rb')
-        self.signals = np.array([])
+        self.signals = np.array([], dtype=object)
 
         self.gHeader = dict()
         '''
@@ -127,13 +127,11 @@ class EDFfile(object):
         sdata = np.fromfile(self.f, dtype='<h', count=l)
 
         A = np.reshape(sdata, (recordWidth, self.gHeader['nrecords']))
-        print 'finished loading!'
         signalLoc = np.concatenate((np.array([0]), np.cumsum([label['sample']
                                    for label in self.sHeader.values()])))
 
-
         for i, sig in enumerate(self.sHeader.values()):
-            np.append(self.signals, np.reshape(A[signalLoc[i]:signalLoc[i+1],:].T,
+            self.signals = np.append(self.signals, np.reshape(A[signalLoc[i]:signalLoc[i+1],:].T,
                                          sig['sample']*self.gHeader['nrecords']))
 
         '''
