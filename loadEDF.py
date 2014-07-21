@@ -5,7 +5,6 @@ import re
 class EDFfile(object):
     def __init__(self, filename):
         self.f = open(filename, 'rb')
-        #self.signals = np.array([], dtype=object)
 
         self.gHeader = dict()
         '''
@@ -82,6 +81,7 @@ class EDFfile(object):
 
         reserved = [self.f.read(32) for res in xrange(ns)]
 
+        # Signal headers
         for i, label in enumerate(labels):
             self.sHeader[label] = {
                     'transducer'  : transducers[i],
@@ -95,40 +95,23 @@ class EDFfile(object):
                     'reserved'    : reserved[i]
                     }
 
-        self.signals = np.empty(self.gHeader['ns'], dtype=object)
-
-        #self.data = np.ndarray(shape=(ns, self.gHeader['nrecords']), dtype='<h')
-        #self.signals = np.array([np.array(shape=(self.gHeader['nrecords']
-        #    *signal['sample'], 1)) for signal in self.sHeader.values()], dtype=object)
-
         print 'Header loaded successfully'
 
     def loadRecords(self):
         print 'Loading requested records...'
 
-        '''
-        self.data = dict()
-        for label in self.sHeader.items():
-            print label[1]['sample']
-            self.data[label[0]] = np.zeros(shape=self.gHeader['nrecords']*label[1]['sample'])
-        '''
+        # Final signal data allocation
+        self.signals = np.empty(self.gHeader['ns'], dtype=object)
 
         recordWidth = sum([label['sample'] for label in
             self.sHeader.values()])
 
-        l = self.gHeader['nrecords'] * recordWidth
-
-        sdata = np.fromfile(self.f, dtype='<h', count=l)
+        sdata = np.fromfile(self.f, dtype='<h', count=self.gHeader['nrecords']
+                                                      * recordWidth)
 
         A = np.reshape(sdata, (recordWidth, self.gHeader['nrecords']))
         signalLoc = np.concatenate((np.array([0]), np.cumsum([label['sample']
-                                   for label in self.sHeader.values()])))
-
-        '''
-        for i, sig in enumerate(self.sHeader.values()):
-            self.signals = np.append(self.signals, np.reshape(A[signalLoc[i]:signalLoc[i+1],:].T,
-                                         sig['sample']*self.gHeader['nrecords']))
-        '''
+                                    for label in self.sHeader.values()])))
 
         for i, sig in enumerate(self.sHeader.values()):
             self.signals[i] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
@@ -159,7 +142,7 @@ class EDFfile(object):
 
 if __name__ == '__main__':
     #signalLabels = []
-    filename = ''
+    filename = '/Users/jaybutera/Downloads/SC4001E0-PSG.edf'
     #epochs = ()
 
     parser = OptionParser()
@@ -170,9 +153,9 @@ if __name__ == '__main__':
     #parser.add_option('-e', '--epochs', dest = 'epochs',
     #        help = 'Number of epochs')
 
-    hdr = EDFfile('/Users/jaybutera/Downloads/SC4001E0-PSG.edf')
-    hdr.loadHeader()
-    hdr.loadRecords()
+    edf = EDFfile(filename)
+    edf.loadHeader()
+    edf.loadRecords()
     #hdr.digToPhys()
 
-    print hdr.signals
+    print edf.signals
