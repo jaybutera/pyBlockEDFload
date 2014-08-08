@@ -134,7 +134,6 @@ class EDFfile(object):
                                     for label in self.sHeaders])))
 
         for i, sig in enumerate(self.sHeaders):
-            print i
             self.signals[i] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
                     int(sig[8])*self.gHeader['nrecords'])
 
@@ -161,8 +160,6 @@ class EDFfile(object):
                                          sig['sample']*self.gHeader['nrecords'])
         '''
 
-        #recordWidth = sum(self.sHeaders)
-
         self.f.close()
 
         print 'Records loaded successfully'
@@ -171,35 +168,40 @@ class EDFfile(object):
         print 'Converting digital signal to physical units'
 
         # Scale data linearly
-        print edf.sHeader['EEG_FpzCz']['physMax']
-        print edf.sHeader['EEG_FpzCz']['physMin']
-        print edf.sHeader['EEG_FpzCz']['digMax']
-        print edf.sHeader['EEG_FpzCz']['digMin']
-        print edf.sHeader['EEG_FpzCz']['unit']
-        scaleFac = np.array([(signal['physMax'] - signal['physMin']) /
-                    (signal['digMax'] - signal['digMin'])
-                    for signal in self.sHeader.values()])
-        scaleFac = scaleFac[::-1]
+        print type(self.sHeaders[0][4])
+        print type(self.sHeaders[0][3])
+        print type(self.sHeaders[0][6])
+        print type(self.sHeaders[0][5])
+        scaleFac = np.array([(float(signal[4]) - float(signal[3])) /
+                    (float(signal[6]) - float(signal[5])) for signal in self.sHeaders])
+        #scaleFac = scaleFac[::-1]
 
-        dc = np.array([signal['physMax'] - scaleFac[i] *
-              signal['digMax'] for i, signal in
-              enumerate(self.sHeader.values())])
-        dc = dc[::-1]
+        dc = np.array([float(signal[4]) - scaleFac[i] *
+              float(signal[6]) for i, signal in enumerate(self.sHeaders)])
+        #dc = dc[::-1]
 
-        for i, signal in enumerate(self.signals):
-            print 'signal: ' , signal[i]
+        '''
+        for i, signal in enumerate([sig[0] for sig in self.signals]):
+            print 'signal: ' , signal
             print 'm: ' , scaleFac[i]
             print 'b: ', dc[i]
-            signal *= scaleFac[i] + dc[i]
+            print signal * scaleFac[i] + dc[i]
         '''
-        dmin = np.array([signal['digMin'] for signal in self.sHeader.values()])
-        dmax = np.array([signal['digMax'] for signal in self.sHeader.values()])
-        pmin = np.array([signal['physMin'] for signal in self.sHeader.values()])
-        pmax = np.array([signal['physMax'] for signal in self.sHeader.values()])
 
+        '''
+        dmin = np.array([float(signal[5]) for signal in self.sHeaders])
+        dmax = np.array([float(signal[6]) for signal in self.sHeaders])
+        pmin = np.array([float(signal[3]) for signal in self.sHeaders])
+        pmax = np.array([float(signal[4]) for signal in self.sHeaders])
+        '''
+
+        self.signals *= scaleFac[i] + dc[i]
+
+        '''
         self.signals = (self.signals - dmin) / (dmax-dmin)
         self.signals *= (pmax - pmin) + pmin
         '''
+        return self.signals
 
     def __del__(self):
         if self.f:
@@ -209,7 +211,6 @@ class EDFfile(object):
 if __name__ == '__main__':
     #signalLabels = []
     filename = '/Users/jaybutera/Downloads/SC4001E0-PSG.edf'
-    #epochs = ()
 
     parser = OptionParser()
     #parser.add_option('-l', '--signal_labels', dest = 'signalLabels',
@@ -222,13 +223,6 @@ if __name__ == '__main__':
     edf = EDFfile(filename)
     edf.loadHeader()
     edf.loadRecords()
-    #edf.digToPhys()
+    print edf.digToPhys()
 
-    '''
-    print edf.sHeader['EEG_FpzCz']['physMax']
-    print edf.sHeader['EEG_FpzCz']['physMin']
-    print edf.sHeader['EEG_FpzCz']['digMax']
-    print edf.sHeader['EEG_FpzCz']['digMin']
-    print edf.sHeader['EEG_FpzCz']['unit']
-    '''
     print edf.signals[0]
