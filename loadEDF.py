@@ -1,3 +1,4 @@
+# 5.0168, -2.4674, 16.5087
 from optparse import OptionParser
 import numpy as np
 import re
@@ -21,6 +22,7 @@ class EDFfile(object):
 
         self.sHeader = dict()
         '''
+        'label'      : '',
         'transducer' : '',
         'unit'       : '',
         'physMax'    : 0.0,
@@ -85,21 +87,8 @@ class EDFfile(object):
         self.sHeaders = np.empty(self.gHeader['ns'], dtype=object)
 
         for i in xrange(self.gHeader['ns']):
-            self.sHeaders[i] = np.array([
-                labels[i],
-                transducers[i],
-                units[i],
-                physMin[i],
-                physMax[i],
-                digMin[i],
-                digMax[i],
-                prefilter[i],
-                samples[i],
-                reserved[i] ])
-
-        '''
-        for i, label in enumerate(labels):
-            self.sHeader[label] = {
+            self.sHeaders[i] = {
+                    'label'       : labels[i],
                     'transducer'  : transducers[i],
                     'unit'        : units[i],
                     'physMin'     : physMin[i],
@@ -110,55 +99,30 @@ class EDFfile(object):
                     'sample'      : samples[i],
                     'reserved'    : reserved[i]
                     }
-            '''
 
         print 'Header loaded successfully'
 
     def loadRecords(self):
         print 'Loading requested records...'
+
         # Final signal data allocation
-        '''
-        self.signals = np.recarray(self.gHeader['ns'], dtype=[(label, object) for
-            label in self.gHeader.keys()])
-        '''
         self.signals = np.empty(self.gHeader['ns'], dtype=object)
 
-        recordWidth = sum([int(label[8]) for label in self.sHeaders])
+        recordWidth = sum([int(label['sample']) for label in self.sHeaders])
 
         # Read signal data from file
         sdata = np.fromfile(self.f, dtype='<h', count=self.gHeader['nrecords']
                                                       * recordWidth)
 
         A = np.reshape(sdata, (recordWidth, self.gHeader['nrecords']))
-        signalLoc = np.concatenate((np.array([0]), np.cumsum([int(label[8])
+        signalLoc = np.concatenate((np.array([0]), np.cumsum([int(label['sample'])
                                     for label in self.sHeaders])))
 
         for i, sig in enumerate(self.sHeaders):
-            self.signals[i] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
-                    int(sig[8])*self.gHeader['nrecords'])
-
-        '''
-        for i, sig in enumerate(self.sHeader.keys())
-            self.signals[sig] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
-                                         self.sHeader[sig]['sample']*self.gHeader['nrecords'])
-        '''
-
-        #print 'self.signals: ', self.signals
-        '''
-        recordWidth = sum([label['sample'] for label in
-            self.sHeader.values()])
-
-        sdata = np.fromfile(self.f, dtype='<h', count=self.gHeader['nrecords']
-                                                      * recordWidth)
-
-        A = np.reshape(sdata, (recordWidth, self.gHeader['nrecords']))
-        signalLoc = np.concatenate((np.array([0]), np.cumsum([label['sample']
-                                    for label in self.sHeader.values()])))
-
-        for i, sig in enumerate(self.sHeader.values()):
-            self.signals[i] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
-                                         sig['sample']*self.gHeader['nrecords'])
-        '''
+            #self.signals[i] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
+            #        int(sig['sample'])*self.gHeader['nrecords'])
+            self.signals[i] = np.array(A[signalLoc[i]:signalLoc[i+1],:],
+                    dtype=float)
 
         self.f.close()
 
@@ -168,39 +132,24 @@ class EDFfile(object):
         print 'Converting digital signal to physical units'
 
         # Scale data linearly
-        print type(self.sHeaders[0][4])
-        print type(self.sHeaders[0][3])
-        print type(self.sHeaders[0][6])
-        print type(self.sHeaders[0][5])
-        scaleFac = np.array([(float(signal[4]) - float(signal[3])) /
-                    (float(signal[6]) - float(signal[5])) for signal in self.sHeaders])
-        #scaleFac = scaleFac[::-1]
+        scaleFac = np.array([(float(signal['physMax']) - float(signal['physMin'])) /
+                    (float(signal['digMax']) - float(signal['digMin'])) for signal in
+                    self.sHeaders], dtype=float)
 
-        dc = np.array([float(signal[4]) - scaleFac[i] *
-              float(signal[6]) for i, signal in enumerate(self.sHeaders)])
-        #dc = dc[::-1]
+        dc = np.array([signal['physMax'] - scaleFac[i] *
+              signal['digMax'] for i, signal in enumerate(self.sHeaders)],
+              dtype=float)
 
-        '''
-        for i, signal in enumerate([sig[0] for sig in self.signals]):
-            print 'signal: ' , signal
-            print 'm: ' , scaleFac[i]
-            print 'b: ', dc[i]
-            print signal * scaleFac[i] + dc[i]
-        '''
+        dmin = np.array([signal['digMin'] for signal in self.sHeaders])
+        dmax = np.array([signal['digMax'] for signal in self.sHeaders])
+        pmin = np.array([signal['physMin'] for signal in self.sHeaders])
+        pmax = np.array([signal['physMax'] for signal in self.sHeaders])
 
-        '''
-        dmin = np.array([float(signal[5]) for signal in self.sHeaders])
-        dmax = np.array([float(signal[6]) for signal in self.sHeaders])
-        pmin = np.array([float(signal[3]) for signal in self.sHeaders])
-        pmax = np.array([float(signal[4]) for signal in self.sHeaders])
-        '''
+        #self.signals = self.signals * scaleFac + dc
+        for i in xrange(len(self.signals)):
+            self.signals[i] *= scaleFac[i]
+            self.signals[i] += dc[i]
 
-        self.signals *= scaleFac[i] + dc[i]
-
-        '''
-        self.signals = (self.signals - dmin) / (dmax-dmin)
-        self.signals *= (pmax - pmin) + pmin
-        '''
         return self.signals
 
     def __del__(self):
@@ -225,4 +174,3 @@ if __name__ == '__main__':
     edf.loadRecords()
     print edf.digToPhys()
 
-    print edf.signals[0]
