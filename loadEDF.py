@@ -20,7 +20,7 @@ class EDFfile(object):
         'ns'        : 0
         '''
 
-        self.sHeader = dict()
+        #self.sHeaders = np.array()
         '''
         'label'      : '',
         'transducer' : '',
@@ -58,7 +58,7 @@ class EDFfile(object):
         ns = self.gHeader['ns']
 
         # Signal labels
-        labels=[re.sub('(?! )\W', '', self.f.read(16)).strip() for label in xrange(ns)] # 7 is temp ns
+        labels = [re.sub('(?! )\W', '', self.f.read(16)).strip() for label in xrange(ns)] # 7 is temp ns
         labels = [re.sub('  *', '_', label) for label in labels]
 
         # Signal transducers
@@ -119,10 +119,11 @@ class EDFfile(object):
                                     for label in self.sHeaders])))
 
         for i, sig in enumerate(self.sHeaders):
-            #self.signals[i] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
-            #        int(sig['sample'])*self.gHeader['nrecords'])
-            self.signals[i] = np.array(A[signalLoc[i]:signalLoc[i+1],:],
-                    dtype=float)
+            self.signals[i] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
+                    int(sig['sample'])*self.gHeader['nrecords'])
+            self.signals[i] = self.signals[i].astype(float)
+            #self.signals[i] = np.array(A[signalLoc[i]:signalLoc[i+1],:],
+            #        dtype=float)
 
         self.f.close()
 
