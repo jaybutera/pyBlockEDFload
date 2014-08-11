@@ -4,8 +4,9 @@ import numpy as np
 import re
 
 class EDFfile(object):
-    def __init__(self, filename):
+    def __init__(self, filename, epochs=None, desired_signals=None):
         self.f = open(filename, 'rb')
+        self.desired_signals = desired_signals
 
         self.gHeader = dict()
         '''
@@ -122,8 +123,6 @@ class EDFfile(object):
             self.signals[i] = np.reshape(A[signalLoc[i]:signalLoc[i+1],:],
                     int(sig['sample'])*self.gHeader['nrecords'])
             self.signals[i] = self.signals[i].astype(float)
-            #self.signals[i] = np.array(A[signalLoc[i]:signalLoc[i+1],:],
-            #        dtype=float)
 
         self.f.close()
 
@@ -151,27 +150,41 @@ class EDFfile(object):
             self.signals[i] *= scaleFac[i]
             self.signals[i] += dc[i]
 
-        return self.signals
-
     def __del__(self):
         if self.f:
             self.f.close()
             print 'Closing file...'
+
+def loadSignals(filename):
+    edf = EDFfile(filename)
+    edf.loadHeader()
+    edf.loadRecords()
+    edf.digToPhys()
+
+    return (edf.gHeader, edf.sHeaders, edf.signals)
 
 if __name__ == '__main__':
     #signalLabels = []
     filename = '/Users/jaybutera/Downloads/SC4001E0-PSG.edf'
 
     parser = OptionParser()
-    #parser.add_option('-l', '--signal_labels', dest = 'signalLabels',
-    #        help = 'Signal labels')
+    parser.add_option('-s', '--desired_signals', dest = 'desired_signals',
+            help = 'Desired signals')
     parser.add_option('-f', '--filename', dest = 'filename',
             help = 'Filename for data retrieval')
-    #parser.add_option('-e', '--epochs', dest = 'epochs',
-    #        help = 'Number of epochs')
+    parser.add_option('-e', '--epochs', dest = 'epochs',
+            help = 'Number of epochs')
 
-    edf = EDFfile(filename)
+    (opts, args) = parser.parse_args()
+    print opts.filename
+
+    if opts.filename:
+        edf = EDFfile(opts.filename, sigLabels=opts.desired_signals)
+    else:
+        edf = EDFfile(filename, sigLabels=opts.desired_signals)
     edf.loadHeader()
     edf.loadRecords()
-    print edf.digToPhys()
+    edf.digToPhys()
+
+    print edf.signals
 
